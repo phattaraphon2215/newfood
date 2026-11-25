@@ -1,0 +1,53 @@
+// โครงสร้าง Prisma Schema สำหรับระบบส่งอาหาร โรงเรียนนายร้อยพระจุลจอมเกล้า (CRMA Food Delivery)
+// รองรับโจทย์ Workshop 5 (Database CRUD) และ Workshop 6 (Authentication, bcrypt Password Hashing & Authorization)
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. ตาราง User (ระบบสมาชิก ยืนยันตัวตน Authentication & กำหนดสิทธิ์ Authorization)
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String   // ชื่อ-สกุล / ยศ / ชั้นปี (เช่น นนร. กิตติพงศ์ ชั้นปีที่ 4)
+  email        String   @unique // อีเมลสำหรับเข้าสู่ระบบ
+  passwordHash String   // รหัสผ่านที่แปลงเป็น Hash ด้วย bcryptjs แล้ว (ห้ามเก็บ Plaintext เด็ดขาด!)
+  role         String   @default("MEMBER") // สิทธิ์การใช้งาน: "MEMBER" (ผู้สั่ง/ผู้รับอาหาร) หรือ "RIDER" (ผู้ส่งอาหาร/ไรเดอร์ จปร.) หรือ "ADMIN"
+  unit         String   @default("กองพันนักเรียนนายร้อยที่ 1 (พัน.1 กรม นนร.)") // สังกัดภายใน รร.จปร.
+  phone        String   @default("089-456-1122")
+  createdAt    DateTime @default(now())
+}
+
+// 2. ตาราง Task (ใบสั่งอาหาร / งานจัดส่งอาหารในพื้นที่ รร.จปร.)
+model Task {
+  id           Int           @id @default(autoincrement())
+  title        String        // ชื่อเมนูอาหารที่สั่ง
+  restaurant   String        @default("สโมสรนายทหาร รร.จปร.")
+  deliveryZone String        @default("กองพันนักเรียนนายร้อยที่ 1")
+  customerName String        @default("นักเรียนนายร้อย")
+  phone        String        @default("081-234-5678")
+  price        Int           @default(60)
+  quantity     Int           @default(1)
+  note         String?       // หมายเหตุเพิ่มเติม
+  isDone       Boolean       @default(false) // สถานะการจัดส่ง (false = กำลังจัดส่ง, true = จัดส่งสำเร็จ)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // ความสัมพันธ์ One-to-Many กับตารางข้อความแชท (Relational Database)
+  messages     ChatMessage[]
+}
+
+// 3. ตาราง ChatMessage (ข้อความแชทพูดคุยระหว่าง ผู้ส่ง/ไรเดอร์ กับ ผู้รับ/ผู้สั่งอาหาร)
+model ChatMessage {
+  id         Int      @id @default(autoincrement())
+  taskId     Int      // Foreign Key เชื่อมไปยังใบสั่งอาหาร (Task)
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  senderRole String   @default("CUSTOMER") // "CUSTOMER" (ผู้รับ/ผู้สั่ง) หรือ "RIDER" (ผู้ส่ง/ไรเดอร์ จปร.)
+  senderName String   // ชื่อผู้ส่งข้อความ
+  message    String   // ข้อความที่พูดคุย
+  createdAt  DateTime @default(now())
+}
